@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1a1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Paver Calc" />
+  <meta name="description" content="Paver & Wall pallet/layer calculator for Belgard, Techo, and Tremron products" />
+  <title>Paver Calculator</title>
+  <link rel="manifest" href="manifest.json" />
+  <!-- Apple touch icon fallback (inline SVG as data URI) -->
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0ece4;
+      --dark: #1a1a1a;
+      --card: #ffffff;
+      --border: #e0dcd4;
+      --muted: #888;
+      --gold: #e8a838;
+      --belgard-bg: #1a3a5c;
+      --belgard-acc: #e8a838;
+      --techo-bg: #2d5016;
+      --techo-acc: #7ab648;
+      --tremron-bg: #5c1a1a;
+      --tremron-acc: #e05c2a;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--dark);
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── HEADER ── */
+    #app-header {
+      background: var(--dark);
+      color: #fff;
+      padding: 16px 16px 12px;
+      padding-top: max(16px, env(safe-area-inset-top));
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+    .header-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .eyebrow { font-size: 9px; letter-spacing: 2px; color: #888; text-transform: uppercase; margin-bottom: 3px; }
+    h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+    #clear-btn {
+      display: none;
+      background: transparent;
+      border: 1px solid #555;
+      color: #ccc;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .search-wrap { position: relative; flex: 1; min-width: 160px; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #888; pointer-events: none; }
+    #search-input {
+      width: 100%;
+      padding: 9px 32px 9px 32px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      background: #2a2a2a;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+    }
+    #clear-search {
+      display: none;
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #888; font-size: 14px; cursor: pointer; padding: 4px;
+    }
+    .tabs { display: flex; gap: 6px; flex-shrink: 0; }
+    .tab-btn {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: transparent;
+      color: #aaa;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    .tab-btn.active { background: var(--gold); border-color: var(--gold); color: var(--dark); }
+    #search-hint { margin-top: 6px; font-size: 11px; color: #888; display: none; }
+
+    /* ── FLATBED BANNER ── */
+    #banner-zone { max-width: 900px; margin: 0 auto; padding: 14px 14px 0; }
+    #flatbed-banner {
+      display: none;
+      border-radius: 12px;
+      border: 1.5px solid;
+      padding: 14px 16px;
+      margin-bottom: 4px;
+    }
+    .banner-top { display: flex; align-items: flex-start; gap: 12px; }
+    .banner-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+    .banner-title { font-weight: 800; font-size: 15px; margin-bottom: 3px; }
+    .banner-sub { color: #e5e7eb; font-size: 13px; }
+    .banner-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .banner-chip {
+      background: rgba(255,255,255,0.12); color: #e5e7eb;
+      border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+    }
+    .flatbed-viz { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+    .flatbed-row { display: flex; align-items: center; gap: 8px; }
+    .flatbed-label { color: #e5e7eb; font-size: 11px; font-weight: 600; width: 68px; flex-shrink: 0; }
+    .flatbed-track { flex: 1; height: 13px; background: rgba(255,255,255,0.15); border-radius: 7px; overflow: hidden; }
+    .flatbed-fill { height: 100%; border-radius: 7px; transition: width 0.3s; }
+    .flatbed-pct { font-size: 11px; font-weight: 700; width: 34px; text-align: right; flex-shrink: 0; }
+
+    /* ── MAIN ── */
+    #main { padding: 14px; max-width: 900px; margin: 0 auto; }
+    #empty-msg { text-align: center; padding: 60px 20px; color: #999; font-size: 16px; display: none; }
+    .cat-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: #888; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin: 24px 0 14px;
+    }
+    .mfr-block { margin-bottom: 20px; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+    .mfr-header { padding: 9px 14px; }
+    .mfr-name { font-weight: 700; font-size: 12px; letter-spacing: 1px; }
+
+    /* ── CARD LAYOUT (replaces table on mobile) ── */
+    .paver-list { background: var(--card); }
+    .paver-card {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .paver-card:last-child { border-bottom: none; }
+    .paver-card.active { background: #fffbf2; }
+    .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .paver-name { font-weight: 600; font-size: 14px; color: #111; flex: 1; }
+    .card-specs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .spec-pill {
+      background: #f5f3ee; border-radius: 6px; padding: 3px 8px;
+      font-size: 10px; color: #666; font-weight: 600; white-space: nowrap;
+    }
+    .card-bottom { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .sf-wrap { display: flex; align-items: center; gap: 6px; }
+    .sf-label { font-size: 11px; color: #888; font-weight: 600; }
+    .sf-input {
+      width: 88px; padding: 8px 10px; border-radius: 8px;
+      border: 1.5px solid #d0c8b8; font-size: 16px; font-weight: 700;
+      text-align: right; background: #faf9f6; outline: none; color: var(--dark);
+      -webkit-appearance: none; appearance: none;
+    }
+    .sf-input:focus { border-color: var(--gold); }
+    .sf-unit { font-size: 12px; color: #999; font-weight: 600; }
+    .result-wrap { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .badge {
+      display: inline-block; padding: 5px 11px; border-radius: 20px;
+      font-size: 12px; font-weight: 800; color: #fff; white-space: nowrap;
+    }
+    .result-sub { font-size: 11px; color: #888; }
+    .result-note { font-size: 11px; color: #999; font-style: italic; }
+    .no-result { color: #ccc; font-size: 18px; }
+
+    footer {
+      text-align: center; padding: 20px; font-size: 11px; color: #aaa;
+      border-top: 1px solid #ddd; background: var(--bg); letter-spacing: 0.5px;
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+
+    /* Install prompt */
+    #install-bar {
+      display: none;
+      background: var(--belgard-bg);
+      color: #fff;
+      padding: 10px 16px;
+      font-size: 13px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    #install-bar button {
+      background: var(--gold); color: var(--dark); border: none;
+      border-radius: 6px; padding: 6px 14px; font-weight: 700; font-size: 12px; cursor: pointer;
+    }
+    #dismiss-install { background: none !important; color: #aaa !important; font-size: 18px !important; padding: 4px 8px !important; }
+  </style>
+</head>
+<body>
+
+<!-- Install bar (Android Chrome) -->
+<div id="install-bar">
+  <span>📲 Add Paver Calc to your home screen</span>
+  <div style="display:flex;gap:6px">
+    <button id="install-btn">Install</button>
+    <button id="dismiss-install">✕</button>
+  </div>
+</div>
+
+<header id="app-header">
+  <div class="header-row">
+    <div>
+      <div class="eyebrow">Hardscape Supply Tool</div>
+      <h1>Paver &amp; Wall Calc</h1>
+    </div>
+    <button id="clear-btn">Clear all</button>
+  </div>
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input id="search-input" type="search" placeholder="Search paver or brand…" autocomplete="off" autocorrect="off" />
+      <button id="clear-search">✕</button>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-cat="ALL">All</button>
+      <button class="tab-btn" data-cat="PAVER">⬛ Paver</button>
+      <button class="tab-btn" data-cat="WALL">🧱 Wall</button>
+    </div>
+  </div>
+  <div id="search-hint"></div>
+</header>
+
+<div id="banner-zone">
+  <div id="flatbed-banner">
+    <div class="banner-top">
+      <span class="banner-icon">🚛</span>
+      <div>
+        <div class="banner-title" id="banner-title"></div>
+        <div class="banner-sub" id="banner-sub"></div>
+      </div>
+    </div>
+    <div class="banner-chips" id="banner-chips"></div>
+    <div class="flatbed-viz" id="flatbed-viz"></div>
+  </div>
+</div>
+
+<main id="main">
+  <div id="empty-msg">No pavers match your search.</div>
+  <div id="paver-list-root"></div>
+</main>
+
+<footer>Layers always rounded up &middot; Max 16 pallets/flatbed &middot; Based on manufacturer specs</footer>
+
+<script>
+const FLATBED_MAX = 16;
+
+const paverData = [
+  // PAVER – Belgard
+  {cat:"PAVER",mfr:"Belgard",name:"Aqualine 4.5×9",sqftPallet:90,sqftLayer:11.25,layersPallet:8,pieceLayer:40},
+  {cat:"PAVER",mfr:"Belgard",name:"Cambridge & Dublin 6×9",sqftPallet:112.5,sqftLayer:11.25,layersPallet:10,pieceLayer:30},
+  {cat:"PAVER",mfr:"Belgard",name:"Cambridge Cobble 2-Piece (9 layer)",sqftPallet:108,sqftLayer:12,layersPallet:9,pieceLayer:36},
+  {cat:"PAVER",mfr:"Belgard",name:"Cambridge Cobble 2-Piece (12 layer)",sqftPallet:112.5,sqftLayer:9.375,layersPallet:12,pieceLayer:null},
+  {cat:"PAVER",mfr:"Belgard",name:"Dublin Cobble 3-Piece",sqftPallet:128,sqftLayer:11.64,layersPallet:11,pieceLayer:48},
+  {cat:"PAVER",mfr:"Belgard",name:"Holland Stone (9 layer)",sqftPallet:120,sqftLayer:13.33,layersPallet:9,pieceLayer:60},
+  {cat:"PAVER",mfr:"Belgard",name:"Holland Stone (10 layer)",sqftPallet:120,sqftLayer:12,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Belgard",name:"Mega Stone",sqftPallet:98,sqftLayer:10.9,layersPallet:9,pieceLayer:35},
+  {cat:"PAVER",mfr:"Belgard",name:"Mega Bergerac",sqftPallet:98,sqftLayer:10.85,layersPallet:9,pieceLayer:17},
+  // PAVER – Techo
+  {cat:"PAVER",mfr:"Techo",name:"Blu Grande",sqftPallet:87.91,sqftLayer:8.79,layersPallet:10,pieceLayer:2},
+  {cat:"PAVER",mfr:"Techo",name:"Blu 60",sqftPallet:116.82,sqftLayer:10.62,layersPallet:11,pieceLayer:10},
+  {cat:"PAVER",mfr:"Techo",name:"Blu 80",sqftPallet:84.96,sqftLayer:10.62,layersPallet:8,pieceLayer:10},
+  {cat:"PAVER",mfr:"Techo",name:"Eva",sqftPallet:132.48,sqftLayer:12.04,layersPallet:11,pieceLayer:26},
+  {cat:"PAVER",mfr:"Techo",name:"Villagio",sqftPallet:117,sqftLayer:10.64,layersPallet:11,pieceLayer:42},
+  // PAVER – Tremron
+  {cat:"PAVER",mfr:"Tremron",name:"Olde Towne 6×9",sqftPallet:124,sqftLayer:12.4,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Olde Towne 2-Piece",sqftPallet:124,sqftLayer:12.4,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Mega Olde Towne",sqftPallet:116,sqftLayer:11.6,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Stonehurst",sqftPallet:116,sqftLayer:11.6,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Brick 4×8",sqftPallet:120,sqftLayer:12,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Bluestone",sqftPallet:105,sqftLayer:10.5,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Templehurst",sqftPallet:116,sqftLayer:11.6,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Plank 4×16",sqftPallet:101,sqftLayer:10.1,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Plank 4×12",sqftPallet:102,sqftLayer:10.2,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Ultra Combo",sqftPallet:107,sqftLayer:10.7,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Olde Towne Remodel",sqftPallet:104,sqftLayer:10.4,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Brick 4×8 Remodel",sqftPallet:106,sqftLayer:10.6,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Mega Olde Towne Remodel",sqftPallet:116,sqftLayer:11.6,layersPallet:10,pieceLayer:null},
+  {cat:"PAVER",mfr:"Tremron",name:"Turf Block",sqftPallet:94,sqftLayer:11.75,layersPallet:8,pieceLayer:null},
+  // WALL – Belgard
+  {cat:"WALL",mfr:"Belgard",name:"Melville",sqftPallet:26.9,sqftLayer:4.48,layersPallet:6,pieceLayer:8},
+  {cat:"WALL",mfr:"Belgard",name:"Melville Cap",sqftPallet:null,sqftLayer:null,layersPallet:10,pieceLayer:6},
+  {cat:"WALL",mfr:"Belgard",name:"Weston Stone 3-Piece",sqftPallet:42,sqftLayer:6,layersPallet:7,pieceLayer:18},
+  {cat:"WALL",mfr:"Belgard",name:"Weston Stone Universal",sqftPallet:39.96,sqftLayer:6.66,layersPallet:6,pieceLayer:20},
+  {cat:"WALL",mfr:"Belgard",name:"Westgate Cap",sqftPallet:null,sqftLayer:null,layersPallet:16,pieceLayer:80},
+  // WALL – Techo
+  {cat:"WALL",mfr:"Techo",name:"Raffinato Cap",sqftPallet:null,sqftLayer:null,layersPallet:8,pieceLayer:3},
+  // WALL – Tremron
+  {cat:"WALL",mfr:"Tremron",name:"Munich Full",sqftPallet:42.67,sqftLayer:5.34,layersPallet:8,pieceLayer:16},
+  {cat:"WALL",mfr:"Tremron",name:"Stonegate",sqftPallet:26,sqftLayer:5.2,layersPallet:5,pieceLayer:12},
+  {cat:"WALL",mfr:"Tremron",name:"Stonegate Cap",sqftPallet:null,sqftLayer:null,layersPallet:8,pieceLayer:16},
+];
+
+const MFR_COLORS = {
+  Belgard: {bg:"#1a3a5c", acc:"#e8a838"},
+  Techo:   {bg:"#2d5016", acc:"#7ab648"},
+  Tremron: {bg:"#5c1a1a", acc:"#e05c2a"},
+};
+
+const sqftValues = {}; // key -> number
+
+function calcResult(p, sqft) {
+  if (!sqft || sqft <= 0) return null;
+  if (p.sqftPallet === null) return {mode:"pieces", pieceLayer:p.pieceLayer, layersPallet:p.layersPallet};
+  const totalLayers = Math.ceil(sqft / p.sqftLayer);
+  const fullPallets = Math.floor(totalLayers / p.layersPallet);
+  const remainderLayers = totalLayers % p.layersPallet;
+  const palletsNeeded = fullPallets + (remainderLayers > 0 ? 1 : 0);
+  return {mode:"sqft", totalLayers, fullPallets, remainderLayers, palletsNeeded,
+          sqftCovered: totalLayers * p.sqftLayer};
+}
+
+function key(p) { return `${p.cat}-${p.mfr}-${p.name}`; }
+
+// ── Render ──────────────────────────────────────────────────────────────────
+let currentCat = "ALL";
+let currentSearch = "";
+
+function render() {
+  const q = currentSearch.toLowerCase();
+  const filtered = paverData.filter(p => {
+    const catOk = currentCat === "ALL" || p.cat === currentCat;
+    const searchOk = !q || p.name.toLowerCase().includes(q) || p.mfr.toLowerCase().includes(q);
+    return catOk && searchOk;
+  });
+
+  // Group
+  const groups = {};
+  for (const p of filtered) {
+    if (!groups[p.cat]) groups[p.cat] = {};
+    if (!groups[p.cat][p.mfr]) groups[p.cat][p.mfr] = [];
+    groups[p.cat][p.mfr].push(p);
+  }
+
+  const root = document.getElementById("paver-list-root");
+  const emptyMsg = document.getElementById("empty-msg");
+  const hint = document.getElementById("search-hint");
+
+  if (filtered.length === 0) {
+    root.innerHTML = "";
+    emptyMsg.style.display = "block";
+    hint.style.display = "none";
+    return;
+  }
+  emptyMsg.style.display = "none";
+  hint.style.display = q ? "block" : "none";
+  hint.textContent = `${filtered.length} result${filtered.length !== 1 ? "s" : ""} — tap a row to enter SF`;
+
+  let html = "";
+  for (const [cat, mfrs] of Object.entries(groups)) {
+    const icon = cat === "PAVER" ? "⬛" : "🧱";
+    html += `<div class="cat-label">${icon} ${cat}</div>`;
+    for (const [mfr, pavers] of Object.entries(mfrs)) {
+      const c = MFR_COLORS[mfr] || {bg:"#333", acc:"#aaa"};
+      html += `<div class="mfr-block">
+        <div class="mfr-header" style="background:${c.bg}">
+          <span class="mfr-name" style="color:${c.acc}">${mfr.toUpperCase()}</span>
+        </div>
+        <div class="paver-list">`;
+      for (const p of pavers) {
+        const k = key(p);
+        const val = sqftValues[k] || "";
+        const r = calcResult(p, parseFloat(val));
+        const isActive = val > 0;
+
+        const specPills = [
+          p.sqftPallet != null ? `${p.sqftPallet} SF/plt` : "N/A SF",
+          p.sqftLayer != null ? `${p.sqftLayer} SF/layer` : "",
+          `${p.layersPallet} layers/plt`,
+        ].filter(Boolean).map(s => `<span class="spec-pill">${s}</span>`).join("");
+
+        let resultHtml = `<span class="no-result">—</span>`;
+        if (r) {
+          if (r.mode === "pieces") {
+            resultHtml = `<span class="result-note">${r.pieceLayer} pcs/layer · ${r.layersPallet} layers/plt</span>`;
+          } else {
+            const {fullPallets, remainderLayers, totalLayers, sqftCovered, palletsNeeded} = r;
+            resultHtml = `<div class="result-wrap">`;
+            if (fullPallets > 0)
+              resultHtml += `<span class="badge" style="background:${c.bg}">${fullPallets} pallet${fullPallets !== 1 ? "s" : ""}</span>`;
+            if (remainderLayers > 0)
+              resultHtml += `<span class="badge" style="background:${c.acc}">${remainderLayers} layer${remainderLayers !== 1 ? "s" : ""} extra</span>`;
+            if (fullPallets === 0 && remainderLayers === 0 && totalLayers > 0)
+              resultHtml += `<span class="badge" style="background:${c.bg}">1 pallet</span>`;
+            resultHtml += `<span class="result-sub">${totalLayers} layers · ~${sqftCovered.toFixed(1)} SF · ${palletsNeeded} plt</span></div>`;
+          }
+        }
+
+        html += `<div class="paver-card${isActive ? " active" : ""}" data-key="${k}">
+          <div class="card-top">
+            <span class="paver-name">${p.name}</span>
+          </div>
+          <div class="card-specs">${specPills}</div>
+          <div class="card-bottom">
+            <div class="sf-wrap">
+              <span class="sf-label">SQ FT</span>
+              <input class="sf-input" type="number" inputmode="decimal" min="0" placeholder="0"
+                value="${val}" data-key="${k}" />
+              <span class="sf-unit">SF</span>
+            </div>
+            <div class="result-area">${resultHtml}</div>
+          </div>
+        </div>`;
+      }
+      html += `</div></div>`;
+    }
+  }
+
+  root.innerHTML = html;
+
+  // Bind inputs (event delegation via root)
+  root.addEventListener("input", onSfInput, { once: true });
+  root.addEventListener("click", onCardClick, { once: true });
+  // Re-bind after each render via delegation on root
+}
+
+// Use event delegation on the main element
+document.getElementById("main").addEventListener("input", e => {
+  if (e.target.classList.contains("sf-input")) {
+    const k = e.target.dataset.key;
+    const val = parseFloat(e.target.value);
+    sqftValues[k] = isNaN(val) ? 0 : val;
+    updateCard(k, e.target);
+    updateBanner();
+    updateClearBtn();
+  }
+});
+
+document.getElementById("main").addEventListener("click", e => {
+  const card = e.target.closest(".paver-card");
+  if (card && e.target.tagName !== "INPUT") {
+    card.querySelector(".sf-input")?.focus();
+  }
+});
+
+function updateCard(k, inputEl) {
+  const card = inputEl.closest(".paver-card");
+  if (!card) return;
+  const p = paverData.find(p => key(p) === k);
+  if (!p) return;
+  const val = sqftValues[k] || 0;
+  const r = calcResult(p, val);
+  const c = MFR_COLORS[p.mfr] || {bg:"#333", acc:"#aaa"};
+  card.classList.toggle("active", val > 0);
+
+  let resultHtml = `<span class="no-result">—</span>`;
+  if (r) {
+    if (r.mode === "pieces") {
+      resultHtml = `<span class="result-note">${r.pieceLayer} pcs/layer · ${r.layersPallet} layers/plt</span>`;
+    } else {
+      const {fullPallets, remainderLayers, totalLayers, sqftCovered, palletsNeeded} = r;
+      resultHtml = `<div class="result-wrap">`;
+      if (fullPallets > 0)
+        resultHtml += `<span class="badge" style="background:${c.bg}">${fullPallets} pallet${fullPallets !== 1 ? "s" : ""}</span>`;
+      if (remainderLayers > 0)
+        resultHtml += `<span class="badge" style="background:${c.acc}">${remainderLayers} layer${remainderLayers !== 1 ? "s" : ""} extra</span>`;
+      if (fullPallets === 0 && remainderLayers === 0 && totalLayers > 0)
+        resultHtml += `<span class="badge" style="background:${c.bg}">1 pallet</span>`;
+      resultHtml += `<span class="result-sub">${totalLayers} layers · ~${sqftCovered.toFixed(1)} SF · ${palletsNeeded} plt</span></div>`;
+    }
+  }
+  card.querySelector(".result-area").innerHTML = resultHtml;
+}
+
+function updateBanner() {
+  let totalPallets = 0;
+  const lines = [];
+  for (const p of paverData) {
+    const k = key(p);
+    const val = sqftValues[k] || 0;
+    if (!val || p.sqftPallet === null) continue;
+    const r = calcResult(p, val);
+    if (!r || r.mode !== "sqft") continue;
+    totalPallets += r.palletsNeeded;
+    lines.push({name: p.name, pallets: r.palletsNeeded});
+  }
+
+  const banner = document.getElementById("flatbed-banner");
+  if (totalPallets === 0) { banner.style.display = "none"; return; }
+
+  const flatbedsNeeded = Math.ceil(totalPallets / FLATBED_MAX);
+  const remainder = totalPallets % FLATBED_MAX;
+  const isLarge = totalPallets >= 12;
+
+  const bannerBg  = totalPallets >= FLATBED_MAX ? "#7f1d1d" : totalPallets >= 12 ? "#78350f" : "#14532d";
+  const bannerAcc = totalPallets >= FLATBED_MAX ? "#fca5a5" : totalPallets >= 12 ? "#fcd34d" : "#86efac";
+
+  banner.style.display = "block";
+  banner.style.background = bannerBg;
+  banner.style.borderColor = bannerAcc;
+
+  document.getElementById("banner-title").style.color = bannerAcc;
+  document.getElementById("banner-title").textContent =
+    `${totalPallets} total pallet${totalPallets !== 1 ? "s" : ""} across all items`;
+
+  const subEl = document.getElementById("banner-sub");
+  if (isLarge) {
+    subEl.textContent = flatbedsNeeded + ` flatbed${flatbedsNeeded !== 1 ? "s" : ""} needed` +
+      (remainder > 0
+        ? ` — ${FLATBED_MAX - remainder} pallet${FLATBED_MAX - remainder !== 1 ? "s" : ""} of space left on last trailer`
+        : " — trailers fully loaded");
+  } else {
+    subEl.textContent = `${FLATBED_MAX - totalPallets} more pallet${FLATBED_MAX - totalPallets !== 1 ? "s" : ""} until a flatbed is needed`;
+  }
+
+  const chipsEl = document.getElementById("banner-chips");
+  chipsEl.innerHTML = lines.length > 1
+    ? lines.map(l => `<span class="banner-chip">${l.name}: ${l.pallets} plt</span>`).join("")
+    : "";
+
+  const vizEl = document.getElementById("flatbed-viz");
+  if (totalPallets >= FLATBED_MAX) {
+    let vizHtml = "";
+    for (let i = 0; i < flatbedsNeeded; i++) {
+      const isLast = i === flatbedsNeeded - 1;
+      const palletsOnThis = isLast && remainder > 0 ? remainder : FLATBED_MAX;
+      const pct = Math.round((palletsOnThis / FLATBED_MAX) * 100);
+      vizHtml += `<div class="flatbed-row">
+        <span class="flatbed-label">Trailer ${i+1}</span>
+        <div class="flatbed-track"><div class="flatbed-fill" style="width:${pct}%;background:${bannerAcc}"></div></div>
+        <span class="flatbed-pct" style="color:${bannerAcc}">${palletsOnThis}/${FLATBED_MAX}</span>
+      </div>`;
+    }
+    vizEl.innerHTML = vizHtml;
+    vizEl.style.display = "flex";
+  } else {
+    vizEl.style.display = "none";
+  }
+}
+
+function updateClearBtn() {
+  const count = Object.values(sqftValues).filter(v => v > 0).length;
+  const btn = document.getElementById("clear-btn");
+  btn.style.display = count > 0 ? "block" : "none";
+  btn.textContent = `Clear all (${count})`;
+}
+
+// ── Controls ────────────────────────────────────────────────────────────────
+document.getElementById("search-input").addEventListener("input", e => {
+  currentSearch = e.target.value;
+  document.getElementById("clear-search").style.display = currentSearch ? "block" : "none";
+  render();
+});
+
+document.getElementById("clear-search").addEventListener("click", () => {
+  document.getElementById("search-input").value = "";
+  currentSearch = "";
+  document.getElementById("clear-search").style.display = "none";
+  render();
+  document.getElementById("search-input").focus();
+});
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentCat = btn.dataset.cat;
+    render();
+  });
+});
+
+document.getElementById("clear-btn").addEventListener("click", () => {
+  Object.keys(sqftValues).forEach(k => sqftValues[k] = 0);
+  currentSearch = "";
+  document.getElementById("search-input").value = "";
+  document.getElementById("clear-search").style.display = "none";
+  render();
+  updateBanner();
+  updateClearBtn();
+});
+
+// ── PWA Install prompt ───────────────────────────────────────────────────────
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById("install-bar").style.display = "flex";
+});
+document.getElementById("install-btn").addEventListener("click", async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById("install-bar").style.display = "none";
+});
+document.getElementById("dismiss-install").addEventListener("click", () => {
+  document.getElementById("install-bar").style.display = "none";
+});
+
+// ── Service Worker ───────────────────────────────────────────────────────────
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
